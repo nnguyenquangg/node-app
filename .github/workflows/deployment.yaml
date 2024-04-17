@@ -1,4 +1,4 @@
-name: Get Kubernetes Namespace
+name: Deployment
 
 on:
   push:
@@ -6,26 +6,12 @@ on:
       - main
 
 jobs:
-  get_namespace:
+  build:
     runs-on: ubuntu-latest
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v2
-
-    # - name: Set up kubectl
-    #   uses: azure/setup-kubectl@v3
-    #   with:
-    #     version: latest
-
-    # - name: Authenticate with kubeconfig
-    #   run: |
-    #     mkdir -p ~/.kube
-    #     cp .github/config  ~/.kube/config
-
-    # - name: Get namespaces
-    #   run: |
-    #     kubectl get namespaces
 
     - name: Login to Docker Hub
       uses: docker/login-action@v2
@@ -38,3 +24,32 @@ jobs:
 
     - name: Push Docker image to Docker Hub
       run: docker push nguyenquang0601/node-hello-app:${{ github.run_number }} 
+  
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        name: changing the deployment of git repo
+        with:
+          repository: 'nnguyenquangg/argocd-deployment'
+          token: ${{ secrets.GIT_TOKEN }}
+          ref: 'main'
+      - name: modify the image
+        run: |
+          git config user.email nguyenquang06012000@gmail.com
+          git config user.name nnguyenquangg
+          pwd
+          cd node-application
+          cat deployment.yaml
+          pwd
+          sed -i "s+nguyenquang0601/node-hello-app.*+nguyenquang0601/node-hello-app:$RUN_NUMBER+g" deployment.yaml
+          cat deployment.yaml
+          cd ..
+          git add .
+          git commit -m 'Done  by Github Actions   Job changemanifest: ${{ github.run_number }}'
+          git push origin main
+        env:
+          GIT_USERNAME: ${{ secrets.GIT_USERNAME }}
+          GIT_PASSWORD: ${{ secrets.GIT_PASSWORD }}
+          RUN_NUMBER: ${{ github.run_number }}
